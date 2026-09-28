@@ -1,0 +1,20 @@
+name: telemed-ia-api-gateway
+
+services:
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: telemed-ia-api-gateway:local
+    container_name: telemed-ia-api-gateway
+    restart: unless-stopped
+    ports:
+      # The gateway is the only service published to the host.
+      - "8000:80"
+    networks:
+      - platform
+
+networks:
+  platform:
+    external: true
+    name: platform
