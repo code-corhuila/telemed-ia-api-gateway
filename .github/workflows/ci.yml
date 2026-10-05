@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, qa, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create the platform network
+        run: docker network create platform
+
+      - name: Build the gateway image
+        run: docker compose -f deploy/compose.yml build
+
+      - name: Start the gateway
+        run: docker compose -f deploy/compose.yml up -d
+
+      - name: Wait for the container to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec telemed-ia-api-gateway wget -qO- http://127.0.0.1/health >/dev/null 2>&1; then
+              echo "Gateway is up."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Gateway did not become ready in 30 seconds."
+          docker logs telemed-ia-api-gateway
+          exit 1
+
+      - name: Check nginx configuration
+        run: docker exec telemed-ia-api-gateway nginx -t
+
+      - name: Run smoke tests
+        run: bash tests/smoke.sh
+
+      - name: Stop the gateway
+        if: always()
+        run: docker compose -f deploy/compose.yml down
