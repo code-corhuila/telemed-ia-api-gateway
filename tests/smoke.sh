@@ -46,6 +46,19 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS \
     "$GATEWAY/api/v1/__options__")
 check "preflight status" "204" "$code"
 
+echo "7. auth routes are public and reach identity-api"
+# No Authorization header: the gateway itself must not reject the request
+# (UNAUTHORIZED) nor miss the route (NOT_FOUND). identity-api may answer
+# INVALID_CREDENTIALS, or the gateway SERVICE_UNAVAILABLE when it is down.
+body=$(curl -s -X POST -H 'Content-Type: application/json' \
+    -d '{"email":"smoke@example.com","password":"not-a-real-password"}' \
+    "$GATEWAY/api/v1/auth/login")
+if echo "$body" | grep -qE '"error":"(UNAUTHORIZED|NOT_FOUND)"'; then
+    echo "  FAIL auth route ($body)"; FAILED=$((FAILED + 1))
+else
+    echo "  ok   auth route reaches identity-api or reports it unavailable"
+fi
+
 if [ "$FAILED" -eq 0 ]; then
     echo "All smoke tests passed."
     exit 0
