@@ -59,6 +59,22 @@ else
     echo "  ok   auth route reaches identity-api or reports it unavailable"
 fi
 
+echo "8. agent route without Authorization returns 401"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$GATEWAY/api/v1/agent/conversations?appointmentId=00000000-0000-4000-8000-000000000000")
+check "agent without token" "401" "$code"
+
+echo "9. agent route with a bearer token reaches intelligent-agent-api"
+# The gateway must not miss the route (NOT_FOUND). The agent validates the
+# token itself and may answer UNAUTHORIZED, or the gateway SERVICE_UNAVAILABLE
+# when the agent is down.
+body=$(curl -s -H 'Authorization: Bearer not-a-real-token' \
+    "$GATEWAY/api/v1/agent/conversations?appointmentId=00000000-0000-4000-8000-000000000000")
+if echo "$body" | grep -q '"error":"NOT_FOUND"'; then
+    echo "  FAIL agent route ($body)"; FAILED=$((FAILED + 1))
+else
+    echo "  ok   agent route reaches intelligent-agent-api or reports it unavailable"
+fi
+
 if [ "$FAILED" -eq 0 ]; then
     echo "All smoke tests passed."
     exit 0
