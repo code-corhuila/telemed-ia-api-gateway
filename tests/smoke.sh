@@ -75,6 +75,21 @@ else
     echo "  ok   agent route reaches intelligent-agent-api or reports it unavailable"
 fi
 
+echo "10. document route without Authorization returns 401"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$GATEWAY/api/v1/documents")
+check "documents without token" "401" "$code"
+
+echo "11. document route with a bearer token reaches document-generation-api"
+# The gateway must not miss the route (NOT_FOUND). The service validates the
+# token itself and may answer UNAUTHORIZED, or the gateway SERVICE_UNAVAILABLE
+# when the service is down.
+body=$(curl -s -H 'Authorization: Bearer not-a-real-token' "$GATEWAY/api/v1/documents")
+if echo "$body" | grep -q '"error":"NOT_FOUND"'; then
+    echo "  FAIL document route ($body)"; FAILED=$((FAILED + 1))
+else
+    echo "  ok   document route reaches document-generation-api or reports it unavailable"
+fi
+
 if [ "$FAILED" -eq 0 ]; then
     echo "All smoke tests passed."
     exit 0
