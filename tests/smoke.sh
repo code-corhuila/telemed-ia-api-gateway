@@ -105,6 +105,21 @@ else
     echo "  ok   professional route reaches professional-management-api or reports it unavailable"
 fi
 
+echo "14. notifications route without Authorization returns 401"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$GATEWAY/api/v1/notifications")
+check "notifications without token" "401" "$code"
+
+echo "15. notifications route with a bearer token reaches notifications-api"
+# The gateway must not miss the route (NOT_FOUND). The service validates the
+# token itself and may answer UNAUTHORIZED, or the gateway SERVICE_UNAVAILABLE
+# when the service is down.
+body=$(curl -s -H 'Authorization: Bearer not-a-real-token' "$GATEWAY/api/v1/notifications/unread-count")
+if echo "$body" | grep -q '"error":"NOT_FOUND"'; then
+    echo "  FAIL notifications route ($body)"; FAILED=$((FAILED + 1))
+else
+    echo "  ok   notifications route reaches notifications-api or reports it unavailable"
+fi
+
 if [ "$FAILED" -eq 0 ]; then
     echo "All smoke tests passed."
     exit 0
