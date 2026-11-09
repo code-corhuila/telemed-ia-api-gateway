@@ -120,6 +120,21 @@ else
     echo "  ok   notifications route reaches notifications-api or reports it unavailable"
 fi
 
+echo "16. sagas route without Authorization returns 401"
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$GATEWAY/api/v1/sagas/professional-onboarding")
+check "sagas without token" "401" "$code"
+
+echo "17. sagas route with a bearer token reaches workflow-api"
+# The gateway must not miss the route (NOT_FOUND). The workflow validates the
+# token itself and may answer UNAUTHORIZED, or the gateway SERVICE_UNAVAILABLE
+# when the service is down.
+body=$(curl -s -H 'Authorization: Bearer not-a-real-token' "$GATEWAY/api/v1/sagas/35920dc9-bd55-41a0-8e41-5832377383e5")
+if echo "$body" | grep -q '"error":"NOT_FOUND"'; then
+    echo "  FAIL sagas route ($body)"; FAILED=$((FAILED + 1))
+else
+    echo "  ok   sagas route reaches workflow-api or reports it unavailable"
+fi
+
 if [ "$FAILED" -eq 0 ]; then
     echo "All smoke tests passed."
     exit 0
