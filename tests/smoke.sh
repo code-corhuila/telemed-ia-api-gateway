@@ -135,6 +135,23 @@ else
     echo "  ok   sagas route reaches workflow-api or reports it unavailable"
 fi
 
+echo "18. post-summary route reaches the medical-consultation handler"
+# Public path from consultation-service.yaml; the service serves /api/post-summaries/{id}.
+# The service checks the token before routing, so this needs a real token:
+# set SMOKE_BEARER_TOKEN to an access token of any signed-in user.
+# A route miss in the service answers the plain text "404 page not found".
+if [ -z "${SMOKE_BEARER_TOKEN:-}" ]; then
+    echo "  skip post-summary route (SMOKE_BEARER_TOKEN not set)"
+else
+    body=$(curl -s -H "Authorization: Bearer $SMOKE_BEARER_TOKEN" \
+        "$GATEWAY/api/v1/consultations/post-summaries/35920dc9-bd55-41a0-8e41-5832377383e5")
+    if echo "$body" | grep -q '404 page not found'; then
+        echo "  FAIL post-summary route ($body)"; FAILED=$((FAILED + 1))
+    else
+        echo "  ok   post-summary route reaches the post-summary handler"
+    fi
+fi
+
 if [ "$FAILED" -eq 0 ]; then
     echo "All smoke tests passed."
     exit 0
